@@ -357,7 +357,7 @@ namespace ExchangeSharp
 		/// <param name="asks">Asks key</param>
 		/// <param name="bids">Bids key</param>
 		/// <returns>Order book</returns>
-		internal static ExchangeOrderBook ParseOrderBookFromJTokenArrays
+		public static ExchangeOrderBook ParseOrderBookFromJTokenArrays
 		(
 			this JToken token,
 			string asks = "asks",

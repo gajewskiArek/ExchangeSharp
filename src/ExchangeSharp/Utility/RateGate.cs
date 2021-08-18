@@ -25,7 +25,7 @@ namespace ExchangeSharp
     /// <summary>
     /// Allows limiting operations over an interval - no more than n operations will exit in the interval specified
     /// </summary>
-    public class RateGate
+    public class RateGate : IDisposable
     {
         // Semaphore used to count and limit the number of occurrences per unit time.
         private readonly SemaphoreSlim semaphore;

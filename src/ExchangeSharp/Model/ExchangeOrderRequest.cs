@@ -96,7 +96,12 @@ namespace ExchangeSharp
         {
             return ShouldRoundAmount ? CryptoUtility.RoundAmount(Amount) : Amount;
         }
-    }
+
+		public override string ToString()
+		{
+			return $"[[{ClientOrderId}], {(IsBuy ? "B" : "S")} {MarketSymbol} {Amount} @ {Price}]";
+		}
+	}
 
     /// <summary>
     /// The type of order - default is limit. Please use market orders with caution. Not all exchanges support market orders.

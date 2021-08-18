@@ -14,7 +14,7 @@ using ExchangeSharp.BinanceGroup;
 
 namespace ExchangeSharp
 {
-	public sealed class ExchangeBinanceAPI : BinanceGroupCommon
+	public class ExchangeBinanceAPI : BinanceGroupCommon
 	{
 		public override string BaseUrl { get; set; } = "https://api.binance.com";
 		public override string BaseUrlWebSocket { get; set; } = "wss://stream.binance.com:9443";

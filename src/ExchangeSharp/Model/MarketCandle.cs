@@ -1,4 +1,4 @@
-﻿/*
+/*
 MIT LICENSE
 
 Copyright 2017 Digital Ruby, LLC - http://www.digitalruby.com
@@ -82,6 +82,8 @@ namespace ExchangeSharp
 		/// The number of trades if provided. 
 		/// </summary>
         public int Count { get; set; }
+
+        public decimal Amplitude => (HighPrice - LowPrice) / ClosePrice;
 
         /// <summary>
         /// ToString

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
 using ExchangeSharpConsole.Options.Interfaces;
@@ -14,9 +15,9 @@ namespace ExchangeSharpConsole.Options
 
 			try
 			{
-				var marketSymbols = await api.GetMarketSymbolsAsync();
+				System.Collections.Generic.IEnumerable<string> marketSymbols = await api.GetMarketSymbolsAsync();
 
-				foreach (var marketSymbol in marketSymbols)
+				foreach (var marketSymbol in marketSymbols.OrderBy(x => x))
 				{
 					Console.WriteLine(marketSymbol);
 				}

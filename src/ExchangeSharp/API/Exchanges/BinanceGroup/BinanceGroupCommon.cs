@@ -13,9 +13,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ExchangeSharp.BinanceGroup
@@ -266,19 +269,47 @@ namespace ExchangeSharp.BinanceGroup
 			else url = await GetWebSocketStreamUrlForSymbolsAsync("@ticker", symbols);
 			return await ConnectPublicWebSocketAsync(url, async (_socket, msg) =>
 			{
-				JToken token = JToken.Parse(msg.ToStringFromUTF8());
+				var timestamp = DateTime.Now;
+				var messsage = msg.ToStringFromUTF8();
+
+				JToken token = JToken.Parse(messsage);
 				List<KeyValuePair<string, ExchangeTicker>> tickerList = new List<KeyValuePair<string, ExchangeTicker>>();
-				ExchangeTicker ticker;
-				foreach (JToken childToken in token["data"])
+
+				async Task ProcessSingleToken(JToken singleToken)
 				{
-					ticker = await ParseTickerWebSocketAsync(childToken);
+					ExchangeTicker ticker = await ParseTickerWebSocketAsync(singleToken);
 					tickerList.Add(new KeyValuePair<string, ExchangeTicker>(ticker.MarketSymbol, ticker));
+					await PersistMarketData(timestamp, ticker, Name);
 				}
+
+				if (symbols.Length == 1)
+				{
+					await ProcessSingleToken(token["data"]);
+				}
+				else
+				{
+					foreach (JToken childToken in token["data"])
+					{
+						await ProcessSingleToken(childToken);
+					}
+				}
+
 				if (tickerList.Count != 0)
 				{
 					callback(tickerList);
+					await PersistMarketDataRawMessage(timestamp, msg, Name);
 				}
 			});
+		}
+
+		protected virtual Task PersistMarketData(DateTime timestamp, ExchangeTicker ticker, string exchange)
+		{
+			return Task.CompletedTask;
+		}
+
+		protected virtual Task PersistMarketDataRawMessage(DateTime timestamp, byte[] message, string exchange)
+		{
+			return Task.CompletedTask;
 		}
 
 		protected override async Task<IWebSocket> OnGetTradesWebSocketAsync(Func<KeyValuePair<string, ExchangeTrade>, Task> callback, params string[] marketSymbols)
@@ -576,7 +607,7 @@ namespace ExchangeSharp.BinanceGroup
 
 			Dictionary<string, object> payload = await GetNoncePayloadAsync();
 			payload["symbol"] = order.MarketSymbol;
-			payload["newClientOrderId"] = order.ClientOrderId;
+			//payload["newClientOrderId"] = order.ClientOrderId;
 			payload["side"] = order.IsBuy ? "BUY" : "SELL";
 			if (order.OrderType == OrderType.Stop)
 				payload["type"] = "STOP_LOSS";//if order type is stop loss/limit, then binance expect word 'STOP_LOSS' inestead of 'STOP'
@@ -641,7 +672,7 @@ namespace ExchangeSharp.BinanceGroup
 		/// <summary>Process the trades that executed as part of your order and sum the fees.</summary>
 		/// <param name="feesToken">The trades executed for a specific currency pair.</param>
 		/// <param name="result">The result object to append to.</param>
-		private static void ParseFees(JToken feesToken, ExchangeOrderResult result)
+		protected static void ParseFees(JToken feesToken, ExchangeOrderResult result)
 		{
 			var tradesInOrder = feesToken.Where(x => x["orderId"].ToStringInvariant() == result.OrderId);
 
@@ -679,19 +710,20 @@ namespace ExchangeSharp.BinanceGroup
 		private async Task<IEnumerable<ExchangeOrderResult>> GetCompletedOrdersForAllSymbolsAsync(DateTime? afterDate)
 		{
 			// TODO: This is a HACK, Binance API needs to add a single API call to get all orders for all symbols, terrible...
-			List<ExchangeOrderResult> orders = new List<ExchangeOrderResult>();
+			//List<ExchangeOrderResult> orders = new List<ExchangeOrderResult>();
 			Exception? ex = null;
 			string? failedSymbol = null;
-			Parallel.ForEach((await GetMarketSymbolsAsync()).Where(s => s.IndexOf("BTC", StringComparison.OrdinalIgnoreCase) >= 0), async (s) =>
+			var symbols = (await GetMarketSymbolsAsync()).ToList();
+
+			var orders = new ConcurrentBag<ExchangeOrderResult>();
+			var tasks = symbols.Select(async s =>
 			{
+				// some pre stuff
 				try
 				{
 					foreach (ExchangeOrderResult order in (await GetCompletedOrderDetailsAsync(s, afterDate)))
 					{
-						lock (orders)
-						{
-							orders.Add(order);
-						}
+						orders.Add(order);
 					}
 				}
 				catch (Exception _ex)
@@ -700,6 +732,7 @@ namespace ExchangeSharp.BinanceGroup
 					ex = _ex;
 				}
 			});
+			await Task.WhenAll(tasks);
 
 			if (ex != null)
 			{
@@ -707,11 +740,12 @@ namespace ExchangeSharp.BinanceGroup
 			}
 
 			// sort timestamp desc
-			orders.Sort((o1, o2) =>
+			var orderList = orders.ToList();
+			orderList.Sort((o1, o2) =>
 			{
 				return o2.OrderDate.CompareTo(o1.OrderDate);
 			});
-			return orders;
+			return orderList;
 		}
 
 		protected override async Task<IEnumerable<ExchangeOrderResult>> OnGetCompletedOrderDetailsAsync(string? marketSymbol = null, DateTime? afterDate = null)
@@ -739,7 +773,7 @@ namespace ExchangeSharp.BinanceGroup
 			return trades;
 		}
 
-		private async Task<IEnumerable<ExchangeOrderResult>> OnGetMyTradesAsync(string? marketSymbol = null, DateTime? afterDate = null)
+		public async Task<IEnumerable<ExchangeOrderResult>> OnGetMyTradesAsync(string? marketSymbol = null, DateTime? afterDate = null)
 		{
 			List<ExchangeOrderResult> trades = new List<ExchangeOrderResult>();
 			if (string.IsNullOrWhiteSpace(marketSymbol))
@@ -853,13 +887,13 @@ namespace ExchangeSharp.BinanceGroup
 			return await this.ParseTickerAsync(token, symbol, "askPrice", "bidPrice", "lastPrice", "volume", "quoteVolume", "closeTime", TimestampType.UnixMilliseconds);
 		}
 
-		private async Task<ExchangeTicker> ParseTickerWebSocketAsync(JToken token)
+		protected async Task<ExchangeTicker> ParseTickerWebSocketAsync(JToken token)
 		{
 			string marketSymbol = token["s"].ToStringInvariant();
-			return await this.ParseTickerAsync(token, marketSymbol, "a", "b", "c", "v", "q", "E", TimestampType.UnixMilliseconds);
+			return await this.ParseTickerAsync(token, marketSymbol, "a", "b", "c",  "v", "q", "E", TimestampType.UnixMilliseconds);
 		}
 
-		private static ExchangeOrderResult ParseOrder(JToken token)
+		public static ExchangeOrderResult ParseOrder(JToken token)
 		{
 			/*
               "symbol": "IOTABTC",
@@ -925,7 +959,7 @@ namespace ExchangeSharp.BinanceGroup
 			return result;
 		}
 
-		internal static ExchangeAPIOrderResult ParseExchangeAPIOrderResult(string status, decimal amountFilled)
+		public static ExchangeAPIOrderResult ParseExchangeAPIOrderResult(string status, decimal amountFilled)
 		{
 			switch (status)
 			{
@@ -948,7 +982,7 @@ namespace ExchangeSharp.BinanceGroup
 			}
 		}
 
-		private static ExchangeOrderResult ParseTrade(JToken token, string symbol)
+		public static ExchangeOrderResult ParseTrade(JToken token, string symbol)
 		{
 			/*
               [

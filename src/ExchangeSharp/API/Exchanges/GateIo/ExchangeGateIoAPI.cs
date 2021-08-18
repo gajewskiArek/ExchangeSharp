@@ -22,7 +22,7 @@ namespace ExchangeSharp
 {
 	public partial class ExchangeName { public const string GateIo = "GateIo"; }
 
-	public sealed class ExchangeGateIoAPI : ExchangeAPI
+	public class ExchangeGateIoAPI : ExchangeAPI
 	{
 		public override string BaseUrl { get; set; } = "https://api.gateio.ws/api/v4";
 		public override string BaseUrlWebSocket { get; set; } = "wss://api.gateio.ws/ws/v4/";
@@ -340,7 +340,7 @@ namespace ExchangeSharp
 			if (order.IsPostOnly == true) payload["time_in_force"] += "poc"; // PendingOrCancelled, makes a post-only order that always enjoys a maker fee
 		}
 
-		private ExchangeOrderResult ParseOrder(JToken order)
+		protected ExchangeOrderResult ParseOrder(JToken order)
 		{
 			decimal amount = order["amount"].ConvertInvariant<decimal>();
 			decimal amountFilled = amount - order["left"].ConvertInvariant<decimal>();

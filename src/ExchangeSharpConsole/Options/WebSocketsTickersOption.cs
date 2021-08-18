@@ -23,14 +23,25 @@ namespace ExchangeSharpConsole.Options
 					{
 						foreach (var (key, ticker) in freshTickers)
 						{
-							Console.WriteLine($"Market {key,8}: Ticker {ticker}");
+							//if (key == "USDT_BTC")
+								if (key.Contains("BTC") && key.Contains("USD"))
+								{
+									Console.WriteLine($"{DateTime.Now.ToLongTimeString()} {api.Name} Market {key,8}: Ticker {ticker}, " +
+									$"{ticker.Volume.QuoteCurrencyVolume} {ticker.Volume.QuoteCurrency} / {ticker.Volume.BaseCurrencyVolume} {ticker.Volume.BaseCurrency}");
+							}
 						}
 					},
 					symbols
 				);
 			}
 
-			await RunWebSocket(ExchangeName, GetWebSocket);
+			var e1 = "Binance";
+			var e2 = "Poloniex";
+
+			var t1 = RunWebSocket(e1, GetWebSocket);
+		//	var t2 = RunWebSocket(e2, GetWebSocket);
+
+			Task.WaitAll(t1);
 		}
 
 		public string ExchangeName { get; set; }

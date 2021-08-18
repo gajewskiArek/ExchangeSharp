@@ -24,12 +24,12 @@ namespace ExchangeSharp
 
     using Newtonsoft.Json;
 
-    public sealed partial class ExchangePoloniexAPI : ExchangeAPI
+    public partial class ExchangePoloniexAPI : ExchangeAPI
     {
         public override string BaseUrl { get; set; } = "https://poloniex.com";
         public override string BaseUrlWebSocket { get; set; } = "wss://api2.poloniex.com";
 
-		private ExchangePoloniexAPI()
+		protected ExchangePoloniexAPI()
         {
             RequestContentType = "application/x-www-form-urlencoded";
             MarketSymbolSeparator = "_";
@@ -272,7 +272,7 @@ namespace ExchangeSharp
             high24hr: args[8],
             low24hr: args[9]
             */
-            return await this.ParseTickerAsync(token, symbol, 2, 3, 1, 5, 6);
+            return await this.ParseTickerAsync(token, symbol, 2, 3, 1, 6, 5);
         }
 
         protected override async Task ProcessRequestAsync(IHttpWebRequest request, Dictionary<string, object> payload)
@@ -418,18 +418,27 @@ namespace ExchangeSharp
             Dictionary<string, string> idsToSymbols = new Dictionary<string, string>();
             return await ConnectPublicWebSocketAsync(string.Empty, async (_socket, msg) =>
             {
-                JToken token = JToken.Parse(msg.ToStringFromUTF8());
+				var timestamp = DateTime.Now;
+				var messsage = msg.ToStringFromUTF8();
+
+				JToken token = JToken.Parse(messsage);
                 if (token[0].ConvertInvariant<int>() == 1002)
                 {
                     if (token is JArray outerArray && outerArray.Count > 2 && outerArray[2] is JArray array && array.Count > 9 &&
                         idsToSymbols.TryGetValue(array[0].ToStringInvariant(), out string symbol))
                     {
-                        callback.Invoke(new List<KeyValuePair<string, ExchangeTicker>>
+						var ticker = await ParseTickerWebSocketAsync(symbol, array);
+
+						callback.Invoke(new List<KeyValuePair<string, ExchangeTicker>>
                         {
-                            new KeyValuePair<string, ExchangeTicker>(symbol, await ParseTickerWebSocketAsync(symbol, array))
+                            new KeyValuePair<string, ExchangeTicker>(symbol, ticker)
                         });
-                    }
+
+						await PersistMarketData(timestamp, ticker, Name);
+						await PersistMarketDataRawMessage(timestamp, msg, Name);
+					}
                 }
+
             }, async (_socket) =>
             {
                 var tickers = await GetTickersAsync();
@@ -441,6 +450,16 @@ namespace ExchangeSharp
                 await _socket.SendMessageAsync(new { command = "subscribe", channel = 1002 });
             });
         }
+
+		protected virtual Task PersistMarketData(DateTime timestamp, ExchangeTicker ticker, string exchange)
+		{
+			return Task.CompletedTask;
+		}
+
+		protected virtual Task PersistMarketDataRawMessage(DateTime timestamp, byte[] message, string exchange)
+		{
+			return Task.CompletedTask;
+		}
 
 		protected override async Task<IWebSocket> OnGetTradesWebSocketAsync(Func<KeyValuePair<string, ExchangeTrade>, Task> callback, params string[] marketSymbols)
 		{

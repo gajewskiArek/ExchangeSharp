@@ -146,6 +146,16 @@ namespace ExchangeSharp
         /// <returns>Result decoded from JSON response</returns>
         Task<T> MakeJsonRequestAsync<T>(string url, string? baseUrl = null, Dictionary<string, object>? payload = null, string? requestMethod = null);
 
-        #endregion Methods
-    }
+		Task<IWebSocket> ConnectWebSocketAsync(string url,
+			Func<IWebSocket, byte[], Task> messageCallback,
+			WebSocketConnectionDelegate? connectCallback = null,
+			WebSocketConnectionDelegate? disconnectCallback = null);
+
+		Task<IWebSocket> ConnectPublicWebSocketAsync(string url,
+			Func<IWebSocket, byte[], Task> messageCallback,
+			WebSocketConnectionDelegate? connectCallback = null,
+			WebSocketConnectionDelegate? disconnectCallback = null);
+
+		#endregion Methods
+	}
 }

@@ -65,13 +65,14 @@ namespace ExchangeSharp
     /// <summary>
     /// Represents all the asks (sells) and bids (buys) for an exchange asset
     /// </summary>
-    public sealed class ExchangeOrderBook
+    public sealed class ExchangeOrderBook : ICloneable
     {
-        /// <summary>
-        /// The sequence id. This increments as updates come through. Not all exchanges will populate this.
-        /// This property is not serialized using the ToBinary and FromBinary methods.
-        /// </summary>
-        public long SequenceId { get; set; }
+		private static DescendingComparer<decimal> bidsComparer = new DescendingComparer<decimal>();
+		/// <summary>
+		/// The sequence id. This increments as updates come through. Not all exchanges will populate this.
+		/// This property is not serialized using the ToBinary and FromBinary methods.
+		/// </summary>
+		public long SequenceId { get; set; }
 
         /// <summary>
         /// The market symbol.
@@ -85,12 +86,12 @@ namespace ExchangeSharp
         /// <summary>
         /// List of asks (sells)
         /// </summary>
-        public SortedDictionary<decimal, ExchangeOrderPrice> Asks { get; } = new SortedDictionary<decimal, ExchangeOrderPrice>();
+        public SortedDictionary<decimal, ExchangeOrderPrice> Asks { get; private set; } = new SortedDictionary<decimal, ExchangeOrderPrice>();
 
         /// <summary>
         /// List of bids (buys)
         /// </summary>
-        public SortedDictionary<decimal, ExchangeOrderPrice> Bids { get; } = new SortedDictionary<decimal, ExchangeOrderPrice>(new DescendingComparer<decimal>());
+        public SortedDictionary<decimal, ExchangeOrderPrice> Bids { get; private set; } = new SortedDictionary<decimal, ExchangeOrderPrice>(bidsComparer);
 
         /// <summary>
 		/// If provided by the exchange, a checksum value that may be used to check orderbook integrity.
@@ -221,5 +222,18 @@ namespace ExchangeSharp
             }
 
         }
-    }
+
+		public object Clone()
+		{
+			return new ExchangeOrderBook
+			{
+				LastUpdatedUtc = this.LastUpdatedUtc,
+				MarketSymbol = this.MarketSymbol,
+				SequenceId = this.SequenceId,
+				Asks = new SortedDictionary<decimal, ExchangeOrderPrice>(this.Asks),
+				Bids = new SortedDictionary<decimal, ExchangeOrderPrice>(this.Bids, bidsComparer)
+			};
+			throw new NotImplementedException();
+		}
+	}
 }

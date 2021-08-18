@@ -865,7 +865,8 @@ namespace ExchangeSharp
 		public virtual async Task<ExchangeOrderBook> GetOrderBookAsync(string marketSymbol, int maxCount = 100)
 		{
 			marketSymbol = NormalizeMarketSymbol(marketSymbol);
-			return await Cache.CacheMethod(MethodCachePolicy, async() => await OnGetOrderBookAsync(marketSymbol, maxCount), nameof(GetOrderBookAsync), nameof(marketSymbol), marketSymbol, nameof(maxCount), maxCount);
+			return await OnGetOrderBookAsync(marketSymbol, maxCount);
+			// return await Cache.CacheMethod(MethodCachePolicy, async() => await OnGetOrderBookAsync(marketSymbol, maxCount), nameof(GetOrderBookAsync), nameof(marketSymbol), marketSymbol, nameof(maxCount), maxCount);
 		}
 
 		/// <summary>
@@ -1014,10 +1015,11 @@ namespace ExchangeSharp
 		/// </summary>
 		/// <param name="marketSymbol">Symbol to get open orders for or null for all</param>
 		/// <returns>All open order details</returns>
-		public virtual async Task<IEnumerable<ExchangeOrderResult>> GetOpenOrderDetailsAsync(string? marketSymbol = null)
+		public virtual Task<IEnumerable<ExchangeOrderResult>> GetOpenOrderDetailsAsync(string? marketSymbol = null)
 		{
 			marketSymbol = NormalizeMarketSymbol(marketSymbol);
-			return await Cache.CacheMethod(MethodCachePolicy, async() => await OnGetOpenOrderDetailsAsync(marketSymbol), nameof(GetOpenOrderDetailsAsync), nameof(marketSymbol), marketSymbol);
+
+			return OnGetOpenOrderDetailsAsync(marketSymbol);
 		}
 
 		/// <summary>
@@ -1026,11 +1028,10 @@ namespace ExchangeSharp
 		/// <param name="marketSymbol">Symbol to get completed orders for or null for all</param>
 		/// <param name="afterDate">Only returns orders on or after the specified date/time</param>
 		/// <returns>All completed order details for the specified symbol, or all if null symbol</returns>
-		public virtual async Task<IEnumerable<ExchangeOrderResult>> GetCompletedOrderDetailsAsync(string? marketSymbol = null, DateTime? afterDate = null)
+		public virtual Task<IEnumerable<ExchangeOrderResult>> GetCompletedOrderDetailsAsync(string? marketSymbol = null, DateTime? afterDate = null)
 		{
 			marketSymbol = NormalizeMarketSymbol(marketSymbol);
-			return await Cache.CacheMethod(MethodCachePolicy, async() => (await OnGetCompletedOrderDetailsAsync(marketSymbol, afterDate)).ToArray(), nameof(GetCompletedOrderDetailsAsync),
-				nameof(marketSymbol), marketSymbol, nameof(afterDate), afterDate);
+			return OnGetCompletedOrderDetailsAsync(marketSymbol, afterDate);
 		}
 
 		/// <summary>

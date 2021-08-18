@@ -17,7 +17,7 @@ namespace ExchangeSharpConsole.Options
 				MarketSymbol,
 				Period,
 				//TODO: Add interfaces for start and end date
-				CryptoUtility.UtcNow.AddDays(-12),
+				CryptoUtility.UtcNow.AddMinutes(-30),
 				CryptoUtility.UtcNow
 			);
 

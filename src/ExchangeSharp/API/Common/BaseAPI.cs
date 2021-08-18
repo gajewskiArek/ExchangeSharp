@@ -186,7 +186,7 @@ namespace ExchangeSharp
 		/// </summary>
 		public RateGate RateLimit
 		{
-			get => rateGate ??= rateLimiters.GetOrAdd(GetType(), v => new RateGate(5, TimeSpan.FromSeconds(15.0d)));
+			get => rateGate ??= rateLimiters.GetOrAdd(GetType(), v => new RateGate(5000, TimeSpan.FromSeconds(15.0d)));
 			set => rateLimiters[GetType()] = rateGate = value;
 		}
 
@@ -468,12 +468,16 @@ namespace ExchangeSharp
 				);
 			}
 
-			PublicApiKey = strings[0];
-			PrivateApiKey = strings[1];
-			if (strings.Length > 2)
-			{
-				Passphrase = strings[2];
-			}
+	        PublicApiKey = strings[0];
+	        PrivateApiKey = strings[1];
+	        if (strings.Length > 2)
+	        {
+		        Passphrase = strings[2];
+	        }
+
+			var pub = PublicApiKey.ToUnsecureString();
+			var priv = PrivateApiKey.ToUnsecureString();
+
 		}
 
 		/// <summary>
@@ -645,14 +649,17 @@ namespace ExchangeSharp
 			return Task.CompletedTask;
 		}
 
-		/// <summary>
-		/// Additional handling for response
-		/// </summary>
-		/// <param name="response">Response</param>
-		protected virtual void ProcessResponse(IHttpWebResponse response)
-		{
-
-		}
+        /// <summary>
+        /// Additional handling for response
+        /// </summary>
+        /// <param name="response">Response</param>
+        protected virtual void ProcessResponse(IHttpWebResponse response)
+        {
+			foreach (var header in response.Headers.Where(x => x.Key.ToUpper().StartsWith("X-MBX-ORDER-COUNT")))
+			{
+				Console.WriteLine($"response header: {header.Key} [{string.Join(", ", header.Value)}]");
+			}
+        }
 
 		/// <summary>
 		/// Process a request url

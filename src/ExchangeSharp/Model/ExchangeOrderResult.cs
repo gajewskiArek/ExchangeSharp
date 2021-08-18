@@ -12,7 +12,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 namespace ExchangeSharp
 {
-    using System;
+	using Newtonsoft.Json;
+	using Newtonsoft.Json.Converters;
+	using System;
 
     /// <summary>Result of an exchange order</summary>
     public sealed class ExchangeOrderResult
@@ -27,8 +29,9 @@ namespace ExchangeSharp
         /// </summary>
         public string ClientOrderId { get; set; }
 
-        /// <summary>Result of the order</summary>
-        public ExchangeAPIOrderResult Result { get; set; }
+		/// <summary>Result of the order</summary>
+		[JsonConverter(typeof(StringEnumConverter))]
+		public ExchangeAPIOrderResult Result { get; set; }
 
         /// <summary>
         /// Result/Error code from exchange
@@ -129,7 +132,7 @@ namespace ExchangeSharp
         /// <returns>A string that represents this instance.</returns>
         public override string ToString()
         {
-            return $"[{OrderDate}], {(IsBuy ? "Buy" : "Sell")} {AmountFilled} of {Amount} {MarketSymbol} {Result} at {AveragePrice}, fees paid {Fees} {FeesCurrency}";
+            return $"[[{OrderId}] [{ClientOrderId}], {(IsBuy ? "B" : "S")} {MarketSymbol} {Amount}@{Price} - {Result} [{OrderDate}]]";
         }
     }
 }

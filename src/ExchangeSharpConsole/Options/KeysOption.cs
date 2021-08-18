@@ -44,7 +44,7 @@ namespace ExchangeSharpConsole.Options
 
 		private async Task CreateKeyFile()
 		{
-			var keyList = await ReadKeysAsync();
+			string[] keyList = new[] { "21575b2f1938a0d3", "92eb12d8e3c79d9d018f554dbabe77a2" };
 
 			CryptoUtility.SaveUnprotectedStringsToFile(Path, keyList);
 
