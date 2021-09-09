@@ -342,23 +342,30 @@ namespace ExchangeSharp
 
 		protected ExchangeOrderResult ParseOrder(JToken order)
 		{
+			static long Round(long i, int nearest) => (i + 5 * nearest / 10) / nearest * nearest;
+
 			decimal amount = order["amount"].ConvertInvariant<decimal>();
 			decimal amountFilled = amount - order["left"].ConvertInvariant<decimal>();
 			decimal? fillPrice = amountFilled == 0 ? null : (decimal?)(order["filled_total"].ConvertInvariant<decimal>() / amountFilled);
 			decimal price = order["price"].ConvertInvariant<decimal>();
+
+			long createTimeMs = Round(order["create_time_ms"].ConvertInvariant<long>(),1000);
+
 			var result = new ExchangeOrderResult
 			{
 				Amount = amount,
 				AmountFilled = amountFilled,
 				Price = price,
 				AveragePrice = fillPrice,
-				Message = string.Empty,
+				Message = null,
 				OrderId = order["id"].ToStringInvariant(),
-				OrderDate = CryptoUtility.UnixTimeStampToDateTimeMilliseconds(order["create_time_ms"].ConvertInvariant<long>()),
+				OrderDate = CryptoUtility.UnixTimeStampToDateTimeMilliseconds(createTimeMs),
 				MarketSymbol = order["currency_pair"].ToStringInvariant(),
 				IsBuy = order["side"].ToStringInvariant() == "buy",
 				ClientOrderId = order["text"].ToStringInvariant(),
 			};
+
+			result.OrderDate = DateTime.SpecifyKind(result.OrderDate, DateTimeKind.Unspecified);
 			result.Result = ParseExchangeAPIOrderResult(order["status"].ToStringInvariant(), amountFilled);
 
 			return result;
