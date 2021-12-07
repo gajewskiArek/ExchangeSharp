@@ -205,7 +205,7 @@ namespace ExchangeSharp
 					return; // either "Connected Successfully" or "Filter Registered Successfully"
 				else if (parsedMsg["status"].ToStringInvariant().Equals("5100"))
 				{
-					Logger.Error("Error in exchange {0} OnGetTradesWebSocketAsync(): {1}", Name, parsedMsg["resmsg"].ToStringInvariant());
+					Logger.Error(null, "Error in exchange {0} OnGetTradesWebSocketAsync(): {1}", Name, parsedMsg["resmsg"].ToStringInvariant());
 					return;
 				}
 				else if (parsedMsg["type"].ToStringInvariant().Equals("transaction"))

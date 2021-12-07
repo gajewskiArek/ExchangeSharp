@@ -207,7 +207,7 @@ namespace ExchangeSharp
             JValue? jValue = obj as JValue;
             if (jValue != null && jValue.Value == null)
             {
-				Logger.Error("Failed parsing of datetime - setting to default value");
+				Logger.Error(null, "Failed parsing of datetime - setting to default value");
                 return defaultValue;
             }
             DateTime dt = (DateTime)Convert.ChangeType(jValue == null ? obj : jValue.Value, typeof(DateTime), CultureInfo.InvariantCulture);

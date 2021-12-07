@@ -88,6 +88,8 @@ namespace ExchangeSharp
 		/// </summary>
 		public Dictionary<string, object> ExtraParameters { get; private set; } = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
+		public decimal? Total => Price * Amount;
+
         /// <summary>
         /// Return a rounded amount if needed
         /// </summary>

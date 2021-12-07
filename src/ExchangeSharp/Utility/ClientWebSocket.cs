@@ -505,7 +505,8 @@ namespace ExchangeSharp
             while (!disposed)
             {
                 if (messageQueue.TryTake(out object message, 100))
-                {
+
+				{
                     try
                     {
                         if (message is Func<Task> action)

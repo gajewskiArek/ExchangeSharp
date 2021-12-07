@@ -349,7 +349,7 @@ namespace ExchangeSharp
 			decimal? fillPrice = amountFilled == 0 ? null : (decimal?)(order["filled_total"].ConvertInvariant<decimal>() / amountFilled);
 			decimal price = order["price"].ConvertInvariant<decimal>();
 
-			long createTimeMs = Round(order["create_time_ms"].ConvertInvariant<long>(),1000);
+			long createTimeMs = Round(order["create_time_ms"].ConvertInvariant<long>(), 1000);
 
 			var result = new ExchangeOrderResult
 			{
@@ -367,6 +367,11 @@ namespace ExchangeSharp
 
 			result.OrderDate = DateTime.SpecifyKind(result.OrderDate, DateTimeKind.Unspecified);
 			result.Result = ParseExchangeAPIOrderResult(order["status"].ToStringInvariant(), amountFilled);
+			if (result.Result == ExchangeAPIOrderResult.Filled)
+			{
+				long updateTimeMs = Round(order["update_time_ms"].ConvertInvariant<long>(), 1000);
+				result.CompletedDate = CryptoUtility.UnixTimeStampToDateTimeMilliseconds(updateTimeMs);
+			}
 
 			return result;
 		}
@@ -376,7 +381,7 @@ namespace ExchangeSharp
 			switch (status)
 			{
 				case "open":
-					return ExchangeAPIOrderResult.Open;
+					return amountFilled > 0 ? ExchangeAPIOrderResult.FilledPartially : ExchangeAPIOrderResult.Open;
 				case "closed":
 					return ExchangeAPIOrderResult.Filled;
 				case "cancelled":
@@ -422,8 +427,8 @@ namespace ExchangeSharp
 			}
 			if (afterDate.HasValue)
 			{
-				url += $"&from={(long)CryptoUtility.UnixTimestampFromDateTimeMilliseconds(afterDate.Value)}";
-				url += $"&to={(long)CryptoUtility.UnixTimestampFromDateTimeMilliseconds(DateTime.Now)}";
+				url += $"&from={(long)CryptoUtility.UnixTimestampFromDateTimeSeconds(afterDate.Value)}";
+				url += $"&to={(long)CryptoUtility.UnixTimestampFromDateTimeSeconds(afterDate.Value.AddHours(8))}";
 			}
 			var responseToken = await MakeJsonRequestAsync<JToken>(url, payload: payload);
 			return responseToken.Select(x => ParseOrder(x)).ToArray();

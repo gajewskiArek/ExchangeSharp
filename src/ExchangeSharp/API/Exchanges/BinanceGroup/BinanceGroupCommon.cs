@@ -59,7 +59,7 @@ namespace ExchangeSharp.BinanceGroup
 			// give binance plenty of room to accept requests
 			RequestWindow = TimeSpan.FromMilliseconds(60000);  // 60000 is max value = max request time window of 60 seconds
 			NonceStyle = NonceStyle.UnixMilliseconds;
-			NonceOffset = TimeSpan.FromSeconds(15); // 15 seconds are deducted from current UTCTime as base of the request time window
+			NonceOffset = TimeSpan.FromSeconds(1); // 15 seconds are deducted from current UTCTime as base of the request time window
 			MarketSymbolSeparator = string.Empty;
 			MarketSymbolIsUppercase = true;
 			WebSocketOrderBookType = WebSocketOrderBookType.DeltasOnly;
