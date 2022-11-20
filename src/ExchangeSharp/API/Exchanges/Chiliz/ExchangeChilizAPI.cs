@@ -307,6 +307,17 @@ namespace ExchangeSharp.API.Exchanges.Chiliz
 			await MakeJsonRequestAsync<JToken>("v1/order", payload: payload, requestMethod: "DELETE");
 		}
 
+		protected override async Task<ExchangeOrderResult> OnGetOrderDetailsAsync(string orderId, string symbol = null, bool isClientOrderId = false)
+		{
+			if (isClientOrderId) throw new NotImplementedException();
+
+			var payload = new Dictionary<string, object> { ["orderId"] = long.Parse(orderId) };
+
+			var responseToken = await MakeJsonRequestAsync<JToken>("v1/order", payload: payload);
+
+			return ParseOrder(responseToken);
+		}
+
 		protected override async Task<IEnumerable<ExchangeOrderResult>> OnGetOpenOrderDetailsAsync(string symbol = null)
 		{
 			var payload = new Dictionary<string, object>();
@@ -315,6 +326,23 @@ namespace ExchangeSharp.API.Exchanges.Chiliz
 				payload.Add("symbol", NormalizeMarketSymbol(symbol));
 			}
 			var responseToken = await MakeJsonRequestAsync<JToken>("v1/openOrders", payload: payload);
+			return responseToken.Select(x => ParseOrder(x)).ToArray();
+		}
+
+		protected override async Task<IEnumerable<ExchangeOrderResult>> OnGetCompletedOrderDetailsAsync(string symbol = null, DateTime? afterDate = null)
+		{
+			var payload = new Dictionary<string, object>();
+
+			if (!string.IsNullOrEmpty(symbol))
+			{
+				payload.Add("symbol", NormalizeMarketSymbol(symbol));
+			}
+
+			if (afterDate.HasValue)
+			{
+				payload.Add("startTime", (long)CryptoUtility.UnixTimestampFromDateTimeMilliseconds(afterDate.Value));
+			}
+			var responseToken = await MakeJsonRequestAsync<JToken>("v1/historyOrders", payload: payload);
 			return responseToken.Select(x => ParseOrder(x)).ToArray();
 		}
 
