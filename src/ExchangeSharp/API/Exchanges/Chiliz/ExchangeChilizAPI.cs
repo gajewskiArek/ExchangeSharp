@@ -140,6 +140,79 @@ namespace ExchangeSharp.API.Exchanges.Chiliz
 			};
 		}
 
+		protected override async Task<IEnumerable<MarketCandle>> OnGetCandlesAsync(
+			string symbol,
+			int periodSeconds,
+			DateTime? startDate = null,
+			DateTime? endDate = null,
+			int? limit = null)
+		{
+			string url = $"quote/v1/klines?symbol={symbol}&interval={PeriodSecondsToString(periodSeconds)}";
+
+			if (limit != null)
+			{
+				limit = (limit == null || limit < 1 || limit > 999) ? 999 : (int)limit;
+				url += $"&limit={limit.ToStringInvariant()}";
+			}
+
+			if (startDate != null || endDate != null)
+			{
+				if (startDate == null)
+				{
+					startDate = endDate.Value.AddSeconds(periodSeconds * (limit ?? 999) * -1);
+				}
+				else if (endDate == null)
+				{
+					endDate = startDate.Value.AddSeconds(periodSeconds * (limit ?? 999));
+				}
+				else
+				{
+					if (endDate > startDate.Value.AddSeconds(periodSeconds * (limit ?? 999)))
+					{
+						endDate = startDate.Value.AddSeconds(periodSeconds * (limit ?? 999));
+					}
+				}
+				url += $"&startTime={((long)startDate.Value.UnixTimestampFromDateTimeSeconds()).ToStringInvariant()}";
+				url += $"&endTime={((long)endDate.Value.UnixTimestampFromDateTimeSeconds()).ToStringInvariant()}";
+			}
+
+			/*
+				 [
+				  [
+					1499040000000,      // Open time
+					"0.01634790",       // Open
+					"0.80000000",       // High
+					"0.01575800",       // Low
+					"0.01577100",       // Close
+					"148976.11427815",  // Volume
+					1499644799999,      // Close time
+					"2434.19055334",    // Quote asset volume
+					308,                // Number of trades
+					"1756.87402397",    // Taker buy base asset volume
+					"28.46694368"       // Taker buy quote asset volume
+				  ]
+				]
+			 */
+
+			var json = await MakeJsonRequestAsync<JToken>(url);
+
+			var candles = json.Select(candleToken => new MarketCandle
+			{
+				Timestamp = CryptoUtility.ParseTimestamp(candleToken[0], TimestampType.UnixMilliseconds),
+				OpenPrice = candleToken[1].ConvertInvariant<decimal>(),
+				HighPrice = candleToken[2].ConvertInvariant<decimal>(),
+				LowPrice = candleToken[3].ConvertInvariant<decimal>(),
+				ClosePrice = candleToken[4].ConvertInvariant<decimal>(),
+				BaseCurrencyVolume = candleToken[5].ConvertInvariant<double>(),
+				Count = candleToken[8].ConvertInvariant<int>(),
+				ExchangeName = Name,
+				Name = symbol,
+				PeriodSeconds = periodSeconds,
+			}).ToList();
+
+			return candles;
+		}
+
 		protected override bool CanMakeAuthenticatedRequest(IReadOnlyDictionary<string, object> payload)
 		{
 			return !(PublicApiKey is null) && !(PrivateApiKey is null);
