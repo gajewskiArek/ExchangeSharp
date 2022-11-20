@@ -298,6 +298,26 @@ namespace ExchangeSharp.API.Exchanges.Chiliz
 			return payload;
 		}
 
+		protected override async Task OnCancelOrderAsync(string orderId, string symbol = null, bool isClientOrderId = false)
+		{
+			if (isClientOrderId) throw new NotImplementedException();
+
+			var payload = new Dictionary<string, object> { ["orderId"] = long.Parse(orderId) };
+
+			await MakeJsonRequestAsync<JToken>("v1/order", payload: payload, requestMethod: "DELETE");
+		}
+
+		protected override async Task<IEnumerable<ExchangeOrderResult>> OnGetOpenOrderDetailsAsync(string symbol = null)
+		{
+			var payload = new Dictionary<string, object>();
+			if (!string.IsNullOrEmpty(symbol))
+			{
+				payload.Add("symbol", NormalizeMarketSymbol(symbol));
+			}
+			var responseToken = await MakeJsonRequestAsync<JToken>("v1/openOrders", payload: payload);
+			return responseToken.Select(x => ParseOrder(x)).ToArray();
+		}
+
 		protected override bool CanMakeAuthenticatedRequest(IReadOnlyDictionary<string, object> payload)
 		{
 			return !(PublicApiKey is null) && !(PrivateApiKey is null);
