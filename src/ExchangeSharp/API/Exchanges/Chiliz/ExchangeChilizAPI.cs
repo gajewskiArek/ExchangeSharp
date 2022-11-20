@@ -213,6 +213,91 @@ namespace ExchangeSharp.API.Exchanges.Chiliz
 			return candles;
 		}
 
+		protected override async Task<ExchangeOrderResult> OnPlaceOrderAsync(ExchangeOrderRequest order)
+		{
+			if (order.OrderType != OrderType.Limit)
+				throw new NotImplementedException();
+
+			var payload = ConvertOrderToPayload(order);
+
+			JToken responseToken = await MakeJsonRequestAsync<JToken>("v1/order", payload: payload, requestMethod: "POST");
+
+			return ParseOrder(responseToken);
+		}
+
+		protected ExchangeOrderResult ParseOrder(JToken order)
+		{
+			static long Round(long i, int nearest) => (i + 5 * nearest / 10) / nearest * nearest;
+
+			decimal amount = order["origQty"].ConvertInvariant<decimal>();
+			decimal amountFilled = order["executedQty"].ConvertInvariant<decimal>();
+			decimal price = order["price"].ConvertInvariant<decimal>();
+
+			long createTimeMs = Round(order["transactTime"].ConvertInvariant<long>(), 1000);
+
+			var result = new ExchangeOrderResult
+			{
+				Amount = amount,
+				AmountFilled = amountFilled,
+				Price = price,
+				Message = null,
+				OrderId = order["orderId"].ToStringInvariant(),
+				OrderDate = CryptoUtility.UnixTimeStampToDateTimeMilliseconds(createTimeMs),
+				MarketSymbol = order["symbol"].ToStringInvariant(),
+				IsBuy = order["side"].ToStringInvariant() == "BUY",
+				ClientOrderId = order["clientOrderId"].ToStringInvariant(),
+			};
+
+			result.OrderDate = DateTime.SpecifyKind(result.OrderDate, DateTimeKind.Unspecified);
+			result.Result = ParseExchangeAPIOrderResult(order["status"].ToStringInvariant(), amountFilled);
+			if (result.Result == ExchangeAPIOrderResult.Filled)
+			{
+				long updateTimeMs = Round(order["transactTime"].ConvertInvariant<long>(), 1000);
+				result.CompletedDate = CryptoUtility.UnixTimeStampToDateTimeMilliseconds(updateTimeMs);
+			}
+
+			return result;
+		}
+
+		private static ExchangeAPIOrderResult ParseExchangeAPIOrderResult(string status, decimal amountFilled)
+		{
+			switch (status)
+			{
+				case "NEW":
+					return ExchangeAPIOrderResult.Open;
+				case "PARTIALLY_FILLED":
+					return ExchangeAPIOrderResult.FilledPartially;
+				case "FILLED":
+					return ExchangeAPIOrderResult.Filled;
+				case "CANCELED":
+					return amountFilled > 0 ? ExchangeAPIOrderResult.FilledPartiallyAndCancelled : ExchangeAPIOrderResult.Canceled;
+				case "PENDING_CANCEL":
+					return ExchangeAPIOrderResult.PendingCancel;
+				case "REJECTED":
+					return ExchangeAPIOrderResult.Rejected;
+				default:
+					throw new NotImplementedException($"Unexpected status type: {status}");
+			}
+		}
+
+		private Dictionary<string, object> ConvertOrderToPayload(ExchangeOrderRequest order)
+		{
+			var payload = new Dictionary<string, object>();
+
+			if (!string.IsNullOrEmpty(order.ClientOrderId))
+			{
+				payload.Add("newClientOrderId", $"t-{order.ClientOrderId}");
+			}
+
+			payload.Add("symbol", NormalizeMarketSymbol(order.MarketSymbol));
+			payload.Add("type", order.OrderType.ToStringUpperInvariant());
+			payload.Add("side", order.IsBuy ? "BUY" : "SELL");
+			payload.Add("quantity", order.Amount.ToStringInvariant());
+			payload.Add("price", order.Price);
+
+			return payload;
+		}
+
 		protected override bool CanMakeAuthenticatedRequest(IReadOnlyDictionary<string, object> payload)
 		{
 			return !(PublicApiKey is null) && !(PrivateApiKey is null);
