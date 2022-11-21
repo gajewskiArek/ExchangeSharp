@@ -346,6 +346,31 @@ namespace ExchangeSharp.API.Exchanges.Chiliz
 			return responseToken.Select(x => ParseOrder(x)).ToArray();
 		}
 
+		protected override async Task<Dictionary<string, decimal>> OnGetAmountsAsync()
+		{
+			var payload = new Dictionary<string, object>();
+			var responseToken = await MakeJsonRequestAsync<JToken>("v1/account", payload: payload);
+			return responseToken["balances"].Select(x => ParseBalance(x))
+				.ToDictionary(x => x.currency, x => x.available + x.locked);
+		}
+
+		protected override async Task<Dictionary<string, decimal>> OnGetAmountsAvailableToTradeAsync()
+		{
+			var payload = new Dictionary<string, object>();
+			var responseToken = await MakeJsonRequestAsync<JToken>("v1/account", payload: payload);
+			return responseToken["balances"].Select(x => ParseBalance(x))
+				.ToDictionary(x => x.currency, x => x.available);
+		}
+
+		private (string currency, decimal available, decimal locked) ParseBalance(JToken balanceToken)
+		{
+			var currency = balanceToken["asset"].ToStringInvariant();
+			var available = balanceToken["free"].ConvertInvariant<decimal>();
+			var locked = balanceToken["locked"].ConvertInvariant<decimal>();
+
+			return (currency, available, locked);
+		}
+
 		protected override bool CanMakeAuthenticatedRequest(IReadOnlyDictionary<string, object> payload)
 		{
 			return !(PublicApiKey is null) && !(PrivateApiKey is null);
