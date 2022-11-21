@@ -227,13 +227,14 @@ namespace ExchangeSharp.API.Exchanges.Chiliz
 
 		protected ExchangeOrderResult ParseOrder(JToken order)
 		{
+			Console.WriteLine(order);
 			static long Round(long i, int nearest) => (i + 5 * nearest / 10) / nearest * nearest;
 
 			decimal amount = order["origQty"].ConvertInvariant<decimal>();
 			decimal amountFilled = order["executedQty"].ConvertInvariant<decimal>();
 			decimal price = order["price"].ConvertInvariant<decimal>();
 
-			long createTimeMs = Round(order["transactTime"].ConvertInvariant<long>(), 1000);
+			long createTimeMs = Round((order["transactTime"] ?? order["time"]).ConvertInvariant<long>(), 1000);
 
 			var result = new ExchangeOrderResult
 			{
@@ -250,9 +251,9 @@ namespace ExchangeSharp.API.Exchanges.Chiliz
 
 			result.OrderDate = DateTime.SpecifyKind(result.OrderDate, DateTimeKind.Unspecified);
 			result.Result = ParseExchangeAPIOrderResult(order["status"].ToStringInvariant(), amountFilled);
-			if (result.Result == ExchangeAPIOrderResult.Filled)
+			if (result.Result == ExchangeAPIOrderResult.Filled || result.Result == ExchangeAPIOrderResult.Canceled)
 			{
-				long updateTimeMs = Round(order["transactTime"].ConvertInvariant<long>(), 1000);
+				long updateTimeMs = Round((order["transactTime"] ?? order["updateTime"]).ConvertInvariant<long>(), 1000);
 				result.CompletedDate = CryptoUtility.UnixTimeStampToDateTimeMilliseconds(updateTimeMs);
 			}
 
